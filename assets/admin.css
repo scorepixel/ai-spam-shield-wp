@@ -1,0 +1,63 @@
+/* AI Spam Filter Admin Styles */
+
+.spam-filter-stats .card {
+    padding: 20px;
+    text-align: center;
+}
+
+.spam-filter-stats .card h3 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #666;
+}
+
+.spam-filter-stats .card p {
+    font-weight: bold;
+    color: #2271b1;
+}
+
+#test-api-result .notice {
+    margin-top: 15px;
+}
+
+details summary {
+    font-weight: 500;
+}
+
+details summary:hover {
+    color: #2271b1;
+}
+
+details[open] summary {
+    margin-bottom: 10px;
+}
+
+.wp-list-table code {
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.tablenav {
+    margin-bottom: 10px;
+}
+
+/* Progress bar animation */
+.wp-list-table td div[style*="background: #"] {
+    transition: width 0.3s ease;
+}
+
+/* Responsive */
+@media screen and (max-width: 782px) {
+    .spam-filter-stats {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .spam-filter-stats {
+        grid-template-columns: 1fr !important;
+    }
+}

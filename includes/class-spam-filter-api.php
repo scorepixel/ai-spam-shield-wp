@@ -82,17 +82,12 @@ class Spam_Filter_API
             'method' => 'POST',
         );
 
-        error_log('AI Spam Filter: Sending content to spam API for checking.');
-        error_log(json_encode($args));
-
         // Make API request
         $response = wp_remote_post($this->api_url, $args);
 
-        error_log(json_encode($response));
-
         // Check for errors
         if (is_wp_error($response)) {
-            $this->log_check($content, false, 0, 'API Error: ' . $response->get_error_message());
+            // $this->log_check($content, false, 0, 'API Error: ' . $response->get_error_message());
             return array(
                 'error' => $response->get_error_message()
             );
@@ -101,7 +96,7 @@ class Spam_Filter_API
         $status_code = wp_remote_retrieve_response_code($response);
 
         if ($status_code !== 200) {
-            $this->log_check($content, false, 0, 'HTTP Error: ' . $status_code);
+            // $this->log_check($content, false, 0, 'HTTP Error: ' . $status_code);
             return array(
                 'error' => json_decode(wp_remote_retrieve_body($response))
             );
@@ -111,7 +106,7 @@ class Spam_Filter_API
         $data = json_decode($body, true);
 
         if (!$data || !isset($data['is_spam'])) {
-            $this->log_check($content, false, 0, 'Invalid API response');
+            // $this->log_check($content, false, 0, 'Invalid API response');
             return array(
                 'error' => 'Invalid response'
             );

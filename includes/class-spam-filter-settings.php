@@ -71,14 +71,6 @@ class Spam_Filter_Settings
         );
 
         add_settings_field(
-            'spam_filter_api_url',
-            __('API URL', 'ai-spam-shield'),
-            array($this, 'render_api_url_field'),
-            'ai-spam-shield',
-            'spam_filter_api_section'
-        );
-
-        add_settings_field(
             'spam_filter_api_key',
             __('API Key', 'ai-spam-shield'),
             array($this, 'render_api_key_field'),
@@ -93,16 +85,6 @@ class Spam_Filter_Settings
             'ai-spam-shield',
             'spam_filter_api_section'
         );
-
-        /*
-         * add_settings_field(
-         *     'spam_filter_api_timeout',
-         *     __('Request Timeout', 'ai-spam-shield'),
-         *     array($this, 'render_timeout_field'),
-         *     'ai-spam-shield',
-         *     'spam_filter_api_section'
-         * );
-         */
 
         // Features Section
         add_settings_section(
@@ -189,8 +171,6 @@ class Spam_Filter_Settings
                             .is_spam ? 'Yes' : 'No') + '<br>' +
                         '<?php _e('Confidence:', 'ai-spam-shield'); ?> ' + (response.data
                             .confidence * 100).toFixed(1) + '%<br>' +
-                        '<?php _e('Method:', 'ai-spam-shield'); ?> ' + response.data
-                        .method +
                         '</p></div>'
                     );
                 } else {
@@ -231,21 +211,12 @@ class Spam_Filter_Settings
 <?php
     }
 
-    public function render_api_url_field()
-    {
-        $value = get_option('spam_filter_api_url', 'http://localhost:3000/check-spam');
-?>
-<input type="url" name="spam_filter_api_url" value="<?php echo esc_attr($value); ?>" class="regular-text" required>
-<p class="description"><?php _e('Full URL to your spam detection API endpoint', 'ai-spam-shield'); ?></p>
-<?php
-    }
-
     public function render_api_key_field()
     {
         $value = get_option('spam_filter_api_key', '');
 ?>
 <input type="password" name="spam_filter_api_key" value="<?php echo esc_attr($value); ?>" class="regular-text">
-<p class="description"><?php _e('Optional: API key for authentication (Bearer token)', 'ai-spam-shield'); ?></p>
+<p class="description"><?php _e('API key for authentication', 'ai-spam-shield'); ?></p>
 <?php
     }
 
@@ -258,16 +229,6 @@ class Spam_Filter_Settings
 <p class="description">
     <?php _e('Confidence threshold (0-1). Content with confidence above this value will be marked as spam. Default: 0.6', 'ai-spam-shield'); ?>
 </p>
-<?php
-    }
-
-    public function render_timeout_field()
-    {
-        $value = get_option('spam_filter_api_timeout', 5);
-?>
-<input type="number" name="spam_filter_api_timeout" value="<?php echo esc_attr($value); ?>" min="1" max="30" step="1"
-    class="small-text">
-<p class="description"><?php _e('API request timeout in seconds. Default: 5', 'ai-spam-shield'); ?></p>
 <?php
     }
 

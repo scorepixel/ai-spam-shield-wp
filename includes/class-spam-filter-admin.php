@@ -166,6 +166,7 @@ class Spam_Filter_Admin
         <thead>
             <tr>
                 <th style="width: 50px;"><?php _e('ID', 'ai-spam-shield'); ?></th>
+                <th style="width: 100px;"><?php _e('Type', 'ai-spam-shield'); ?></th>
                 <th><?php _e('Content', 'ai-spam-shield'); ?></th>
                 <th style="width: 100px;"><?php _e('Status', 'ai-spam-shield'); ?></th>
                 <th style="width: 100px;"><?php _e('Confidence', 'ai-spam-shield'); ?></th>
@@ -184,6 +185,8 @@ class Spam_Filter_Admin
             <?php foreach ($logs as $log): ?>
             <tr>
                 <td><?php echo esc_html($log->id); ?></td>
+                <td><?php echo $log->type === 'comment' ? '💬' : '✉️'; ?> <?php echo ucfirst(esc_html($log->type)); ?>
+                </td>
                 <td>
                     <details>
                         <summary style="cursor: pointer;">
@@ -191,11 +194,11 @@ class Spam_Filter_Admin
                         </summary>
                         <div style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 4px;">
                             <?php echo nl2br(esc_html($log->content)); ?>
-                            <?php if (!empty($log->matched_keywords)): ?>
+                            <?php if (!empty($log->flags)): ?>
                             <div style="margin-top: 10px;">
                                 <strong><?php _e('Matched Keywords:', 'ai-spam-shield'); ?></strong>
                                 <?php
-                                $keywords = json_decode($log->matched_keywords, true);
+                                $keywords = maybe_unserialize($log->flags);
                                 if (is_array($keywords) && !empty($keywords)) {
                                     echo '<div style="margin-top: 5px;">';
                                     foreach ($keywords as $keyword) {

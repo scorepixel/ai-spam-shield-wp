@@ -14,11 +14,11 @@ class Spam_Filter_API
 
     public function __construct()
     {
-        $this->api_url = get_option('spam_filter_api_url');
+        $this->api_url = 'https://ai-spam-shield.scorepixel.com/check-spam';
         $this->api_key = get_option('spam_filter_api_key');
         $this->threshold = (float) get_option('spam_filter_api_threshold', 0.6);
         $this->enabled = get_option('spam_filter_api_enabled', true);
-        $this->timeout = 5;
+        $this->timeout = 60;
     }
 
     public function init()
@@ -32,16 +32,26 @@ class Spam_Filter_API
             add_filter('preprocess_comment', array($this, 'check_comment'), 10, 1);
         }
 
-        // Hook into Contact Form 7
+        // Hook into contact forms
         if (get_option('spam_filter_api_check_contact_forms', true)) {
-            add_filter('wpcf7_spam', array($this, 'check_contact_form_7'), 10, 2);
+            // Hook into Contact Form 7
+            if (function_exists('wpcf7')) {
+                add_filter('wpcf7_spam', array($this, 'check_contact_form_7'), 10, 2);
+            }
+
+            // Hook into WPForms
+            if (class_exists('WPForms')) {
+                add_filter('wpforms_process_filter', array($this, 'check_wpforms'), 10, 3);
+            }
+
+            // Hook into Gravity Forms
+            if (class_exists('GFAPI')) {
+                add_filter('gform_entry_is_spam', array($this, 'check_gravity_forms'), 10, 3);
+            }
+
+            // Hook Bricks forms
+            add_filter('bricks/form/validate', [$this, 'validate_bricks_form'], 10, 2);
         }
-
-        // Hook into WPForms
-        add_filter('wpforms_process_before_filter', array($this, 'check_wpforms'), 10, 3);
-
-        // Hook into Gravity Forms
-        add_filter('gform_entry_is_spam', array($this, 'check_gravity_forms'), 10, 3);
 
         // Create logs table if logging is enabled
         if (get_option('spam_filter_api_log_enabled', true)) {
@@ -52,7 +62,7 @@ class Spam_Filter_API
     /**
      * Check content against spam API
      */
-    public function check_spam($content)
+    public function check_spam($content, $type = 'email')
     {
         if (empty($content)) {
             return array(
@@ -62,12 +72,9 @@ class Spam_Filter_API
             );
         }
 
-        $body = array(
-            'content' => $content
-        );
-
         $headers = array(
             'Content-Type' => 'application/json',
+            'X-Origin-Domain' => home_url()
         );
 
         // Add API key if configured
@@ -76,7 +83,7 @@ class Spam_Filter_API
         }
 
         $args = array(
-            'body' => json_encode($body),
+            'body' => json_encode(array('content' => $content)),
             'headers' => $headers,
             'timeout' => $this->timeout,
             'method' => 'POST',
@@ -87,7 +94,6 @@ class Spam_Filter_API
 
         // Check for errors
         if (is_wp_error($response)) {
-            // $this->log_check($content, false, 0, 'API Error: ' . $response->get_error_message());
             return array(
                 'error' => $response->get_error_message()
             );
@@ -96,7 +102,6 @@ class Spam_Filter_API
         $status_code = wp_remote_retrieve_response_code($response);
 
         if ($status_code !== 200) {
-            // $this->log_check($content, false, 0, 'HTTP Error: ' . $status_code);
             return array(
                 'error' => json_decode(wp_remote_retrieve_body($response))
             );
@@ -106,7 +111,6 @@ class Spam_Filter_API
         $data = json_decode($body, true);
 
         if (!$data || !isset($data['is_spam'])) {
-            // $this->log_check($content, false, 0, 'Invalid API response');
             return array(
                 'error' => 'Invalid response'
             );
@@ -119,15 +123,13 @@ class Spam_Filter_API
             $content,
             $is_spam,
             $data['confidence'],
-            isset($data['method']) ? $data['method'] : 'unknown',
-            isset($data['matched_keywords']) ? $data['matched_keywords'] : array()
+            $type,
+            $data['flags'] ?? null
         );
 
         return array(
             'is_spam' => $is_spam,
-            'confidence' => $data['confidence'],
-            'method' => isset($data['method']) ? $data['method'] : 'unknown',
-            'matched_keywords' => isset($data['matched_keywords']) ? $data['matched_keywords'] : array()
+            'confidence' => $data['confidence']
         );
     }
 
@@ -150,7 +152,7 @@ class Spam_Filter_API
             $content .= "\nWebsite: " . $commentdata['comment_author_url'];
         }
 
-        $result = $this->check_spam($content);
+        $result = $this->check_spam($content, 'comment');
 
         if ($result['is_spam']) {
             // Mark as spam
@@ -199,7 +201,7 @@ class Spam_Filter_API
     /**
      * Check WPForms
      */
-    public function check_wpforms($fields, $entry, $form_data)
+    public function check_wpforms($fields, $entry)
     {
         // Combine all field values
         $content = '';
@@ -212,7 +214,7 @@ class Spam_Filter_API
         $result = $this->check_spam($content);
 
         if ($result['is_spam']) {
-            wpforms()->process->errors[$form_data['id']]['header'] = esc_html__('Your submission has been flagged as spam.', 'ai-spam-shield');
+            wpforms()->process->errors[$entry['id']]['header'] = esc_html__('Your submission has been flagged as spam.', 'ai-spam-shield');
         }
 
         return $fields;
@@ -241,6 +243,42 @@ class Spam_Filter_API
     }
 
     /**
+     * Check Bricks form
+     */
+    public function validate_bricks_form($errors, $form)
+    {
+        try {
+            // Access protected property 'form_fields'
+            $ref = new ReflectionClass($form);
+            $prop = $ref->getProperty('form_fields');
+            $prop->setAccessible(true);
+            $fields = $prop->getValue($form);
+        } catch (Exception $e) {
+            return $errors;
+        }
+
+        if (empty($fields)) {
+            return $errors;
+        }
+
+        // Combine submitted values
+        $content = '';
+        foreach ($fields as $key => $value) {
+            if (strpos($key, 'form-field-') === 0 && is_string($value) && !empty($value)) {
+                $content .= $value . "\n";
+            }
+        }
+
+        $result = $this->check_spam($content);
+
+        if (!empty($result['is_spam']) && $result['is_spam']) {
+            $errors[] = esc_html__('Your submission was flagged as spam and not sent.', 'ai-spam-shield');
+        }
+
+        return $errors;
+    }
+
+    /**
      * Create logs table
      */
     private function create_logs_table()
@@ -255,8 +293,8 @@ class Spam_Filter_API
             content text NOT NULL,
             is_spam tinyint(1) NOT NULL,
             confidence decimal(4,3) NOT NULL,
-            method varchar(50) DEFAULT NULL,
-            matched_keywords text DEFAULT NULL,
+            type varchar(50) DEFAULT 'email',
+            flags text DEFAULT NULL,
             ip_address varchar(45) DEFAULT NULL,
             user_agent text DEFAULT NULL,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
@@ -272,8 +310,13 @@ class Spam_Filter_API
     /**
      * Log spam check
      */
-    private function log_check($content, $is_spam, $confidence, $method = '', $keywords = array())
-    {
+    private function log_check(
+        $content,
+        $is_spam,
+        $confidence,
+        $type = 'email',
+        $flags = null
+    ) {
         if (!get_option('spam_filter_api_log_enabled', true)) {
             return;
         }
@@ -287,8 +330,8 @@ class Spam_Filter_API
                 'content' => substr($content, 0, 1000),  // Store first 1000 chars
                 'is_spam' => $is_spam ? 1 : 0,
                 'confidence' => $confidence,
-                'method' => $method,
-                'matched_keywords' => json_encode($keywords),
+                'type' => $type,
+                'flags' => $flags ? maybe_serialize($flags) : null,
                 'ip_address' => $this->get_client_ip(),
                 'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
             ),

@@ -41,7 +41,6 @@ register_activation_hook(__FILE__, 'spam_filter_api_activate');
 function spam_filter_api_activate()
 {
     // Create options with default values
-    add_option('spam_filter_api_url', 'http://localhost:3000/check-spam');
     add_option('spam_filter_api_key', '');
     add_option('spam_filter_api_threshold', 0.6);
     add_option('spam_filter_api_enabled', true);

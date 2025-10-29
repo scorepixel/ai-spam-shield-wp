@@ -1,4 +1,5 @@
 <?php
+
 /** Settings Class */
 if (!defined('ABSPATH')) {
     exit;
@@ -17,15 +18,6 @@ class Spam_Filter_Settings
      */
     public function add_admin_menu()
     {
-        /*
-         * add_options_page(
-         *     __('AI Spam Shield Settings', 'ai-spam-shield'),
-         *     __('AI Spam Shield', 'ai-spam-shield'),
-         *     'manage_options',
-         *     'ai-spam-shield',
-         *     array($this, 'render_settings_page')
-         * );
-         */
         add_menu_page(
             __('AI Spam Shield', 'ai-spam-shield'),
             __('AI Spam Shield', 'ai-spam-shield'),
@@ -45,6 +37,7 @@ class Spam_Filter_Settings
         // API Settings
         register_setting('spam_filter_api_settings', 'spam_filter_api_url');
         register_setting('spam_filter_api_settings', 'spam_filter_api_key');
+        register_setting('spam_filter_api_settings', 'spam_filter_api_license');
         register_setting('spam_filter_api_settings', 'spam_filter_api_threshold');
         register_setting('spam_filter_api_settings', 'spam_filter_api_timeout');
         register_setting('spam_filter_api_settings', 'spam_filter_api_enabled');
@@ -71,9 +64,9 @@ class Spam_Filter_Settings
         );
 
         add_settings_field(
-            'spam_filter_api_key',
-            __('API Key', 'ai-spam-shield'),
-            array($this, 'render_api_key_field'),
+            'spam_filter_api_license',
+            __('License Key', 'ai-spam-shield'),
+            array($this, 'render_license_field'),
             'ai-spam-shield',
             'spam_filter_api_section'
         );
@@ -119,6 +112,22 @@ class Spam_Filter_Settings
         );
     }
 
+    public static function checked($checked, $current = true, $echo = true)
+    {
+        $result = '';
+
+        // Compare the values (use loose comparison)
+        if ((string) $checked === (string) $current) {
+            $result = " checked='checked'";
+        }
+
+        if ($echo) {
+            echo $result;
+        }
+
+        return $result;
+    }
+
     /**
      * Render settings page
      */
@@ -126,6 +135,11 @@ class Spam_Filter_Settings
     {
         if (!current_user_can('manage_options')) {
             return;
+        }
+
+        // If settings were just saved, attempt license activation if a license is present
+        if (isset($_GET['settings-updated']) && $_GET['settings-updated']) {
+            Spam_Filter_API::maybe_activate_license();
         }
         ?>
 <div class="wrap">
@@ -205,7 +219,7 @@ class Spam_Filter_Settings
         $enabled = get_option('spam_filter_api_enabled', true);
 ?>
 <label>
-    <input type="checkbox" name="spam_filter_api_enabled" value="1" <?php checked($enabled, 1); ?>>
+    <input type="checkbox" name="spam_filter_api_enabled" value="1" <?php self::checked($enabled, 1); ?>>
     <?php _e('Enable spam filtering', 'ai-spam-shield'); ?>
 </label>
 <?php
@@ -217,6 +231,33 @@ class Spam_Filter_Settings
 ?>
 <input type="password" name="spam_filter_api_key" value="<?php echo esc_attr($value); ?>" class="regular-text">
 <p class="description"><?php _e('API key for authentication', 'ai-spam-shield'); ?></p>
+<?php
+    }
+
+    public function render_license_field()
+    {
+        $value = get_option('spam_filter_api_license', '');
+        $usage = Spam_Filter_API::get_license_usage();
+?>
+<input type="password" name="spam_filter_api_license" value="<?php echo esc_attr($value); ?>" class="regular-text"
+    placeholder="<?php esc_attr_e('sk_XXXX...', 'ai-spam-shield'); ?>">
+<p class="description">
+    <?php _e('Enter the license key to activate this site.', 'ai-spam-shield'); ?>
+</p>
+<?php if (get_option('ai_spam_shield_license_active')): ?>
+<p style="color: green; margin-top: 5px;">
+    <span style="background: #008000; padding: 2px 6px; color: #fff; font-weight: 600;"><?= $usage['plan'] ?></span>
+    <?php _e('Your license is active', 'ai-spam-shield'); ?>
+</p>
+<?php endif; ?>
+<?php if ($usage): ?>
+<p class="description">
+    <?php _e('Content scanned:', 'ai-spam-shield'); ?>
+    <strong><?php echo esc_html($usage['count'] . ' / ' . $usage['limit']); ?></strong>
+</p>
+<?php endif; ?>
+
+
 <?php
     }
 
@@ -237,7 +278,7 @@ class Spam_Filter_Settings
         $enabled = get_option('spam_filter_api_check_comments', true);
 ?>
 <label>
-    <input type="checkbox" name="spam_filter_api_check_comments" value="1" <?php checked($enabled, 1); ?>>
+    <input type="checkbox" name="spam_filter_api_check_comments" value="1" <?php self::checked($enabled, 1); ?>>
     <?php _e('Filter WordPress comments', 'ai-spam-shield'); ?>
 </label>
 <?php
@@ -248,9 +289,10 @@ class Spam_Filter_Settings
         $enabled = get_option('spam_filter_api_check_contact_forms', true);
 ?>
 <label>
-    <input type="checkbox" name="spam_filter_api_check_contact_forms" value="1" <?php checked($enabled, 1); ?>>
-    <?php _e('Filter contact form submissions (Contact Form 7, WPForms, Gravity Forms)', 'ai-spam-shield'); ?>
+    <input type="checkbox" name="spam_filter_api_check_contact_forms" value="1" <?php self::checked($enabled, 1); ?>>
+    <?php _e('Filter contact form submissions', 'ai-spam-shield'); ?>
 </label>
+<p class="description"><?php _e('Contact Form 7, WPForms, Gravity Forms and Bricks Forms', 'ai-spam-shield'); ?></p>
 <?php
     }
 
@@ -259,7 +301,7 @@ class Spam_Filter_Settings
         $enabled = get_option('spam_filter_api_log_enabled', true);
 ?>
 <label>
-    <input type="checkbox" name="spam_filter_api_log_enabled" value="1" <?php checked($enabled, 1); ?>>
+    <input type="checkbox" name="spam_filter_api_log_enabled" value="1" <?php self::checked($enabled, 1); ?>>
     <?php _e('Log spam checks to database', 'ai-spam-shield'); ?>
 </label>
 <p class="description"><?php _e('Stores spam check results for analysis', 'ai-spam-shield'); ?></p>

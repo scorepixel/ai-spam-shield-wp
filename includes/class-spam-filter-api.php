@@ -532,7 +532,8 @@ class Spam_Filter_API
         $endpoint = Spam_Filter_API::get_api_url() . '/license/usage';
 
         // Domain to bind
-        $domain = parse_url(home_url(), PHP_URL_HOST);
+        $domain = home_url();
+
         if (!$domain) {
             $domain = $_SERVER['HTTP_HOST'] ?? 'localhost';
         }

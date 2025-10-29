@@ -154,52 +154,6 @@ class Spam_Filter_Settings
         submit_button(__('Save Settings', 'ai-spam-shield'));
         ?>
     </form>
-
-    <div class="card">
-        <h2><?php _e('Test API Connection', 'ai-spam-shield'); ?></h2>
-        <p><?php _e('Test your API configuration with sample spam content.', 'ai-spam-shield'); ?></p>
-        <button type="button" class="button button-secondary" id="test-api-btn">
-            <?php _e('Test API', 'ai-spam-shield'); ?>
-        </button>
-        <div id="test-api-result" style="margin-top: 10px;"></div>
-    </div>
-
-    <script>
-    jQuery(document).ready(function($) {
-        $('#test-api-btn').on('click', function() {
-            var btn = $(this);
-            btn.prop('disabled', true).text('<?php _e('Testing...', 'ai-spam-shield'); ?>');
-
-            $.post(ajaxurl, {
-                action: 'spam_filter_test_api',
-                nonce: '<?php echo wp_create_nonce('spam_filter_test_api'); ?>'
-            }, function(response) {
-
-                console.log(response);
-
-                if (response.success && !response.error) {
-                    $('#test-api-result').html(
-                        '<div class="notice notice-success"><p>' +
-                        '<strong><?php _e('API Test Successful!', 'ai-spam-shield'); ?></strong><br>' +
-                        '<?php _e('Is Spam:', 'ai-spam-shield'); ?> ' + (response.data
-                            .is_spam ? 'Yes' : 'No') + '<br>' +
-                        '<?php _e('Confidence:', 'ai-spam-shield'); ?> ' + (response.data
-                            .confidence * 100).toFixed(1) + '%<br>' +
-                        '</p></div>'
-                    );
-                } else {
-                    $('#test-api-result').html(
-                        '<div class="notice notice-error"><p>' +
-                        '<strong><?php _e('API Test Failed!', 'ai-spam-shield'); ?></strong><br>' +
-                        response.data.message.error +
-                        '</p></div>'
-                    );
-                }
-                btn.prop('disabled', false).text('<?php _e('Test API', 'ai-spam-shield'); ?>');
-            });
-        });
-    });
-    </script>
 </div>
 <?php
     }

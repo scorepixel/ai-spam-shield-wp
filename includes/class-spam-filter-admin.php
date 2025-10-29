@@ -41,31 +41,6 @@ class Spam_Filter_Admin
     }
 
     /**
-     * Test API connection
-     */
-    public function test_api()
-    {
-        check_ajax_referer('spam_filter_test_api', 'nonce');
-
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error(array('message' => __('Permission denied', 'ai-spam-shield')));
-        }
-
-        $spam_filter = new Spam_Filter_API();
-
-        // Test with a known spam example
-        $test_content = 'Congratulations! You won $1,000,000! Click here now to claim your prize! Act immediately!';
-
-        $result = $spam_filter->check_spam($test_content);
-
-        if (isset($result['error'])) {
-            wp_send_json_error(array('message' => $result['error']));
-        }
-
-        wp_send_json_success($result);
-    }
-
-    /**
      * Render logs page
      */
     public function render_logs_page()
